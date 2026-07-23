@@ -1,0 +1,331 @@
+{% extends "base.html" %}
+{% block title %}Return Review{% endblock %}
+{% block body %}
+
+<div x-data="reviewApp()" x-init="select('f_gross_receipts')" class="flex h-[calc(100vh-3.5rem)]">
+
+  <!-- ══════════ LEFT: THE RETURN ══════════ -->
+  <section class="w-[38%] min-w-[420px] border-r border-slate-200 bg-white flex flex-col">
+
+    <div class="px-5 py-4 border-b border-slate-200">
+      <div class="flex items-baseline justify-between">
+        <div>
+          <h1 class="font-semibold tracking-tight">Verdant Retail Holdings, LLC</h1>
+          <p class="text-xs text-slate-500 mt-0.5">Form 1120 · FY2025 · Cannabis retail · Sec. 280E applies</p>
+        </div>
+        <span class="text-[11px] px-2 py-1 rounded bg-slate-100 text-slate-600 mono">EIN ••-•••4471</span>
+      </div>
+
+      <!-- status ribbon: counts by state -->
+      <div class="flex gap-1.5 mt-3">
+        {% for key, meta in STATES.items() %}
+          {% if counts[key] %}
+          <button @click="filterState = (filterState==='{{key}}' ? null : '{{key}}')"
+                  :class="filterState==='{{ key }}' ? 'ring-2 ring-offset-1 ring-slate-900' : ''"
+                  class="px-2 py-1 rounded text-[11px] font-medium ring-1 {{ meta.chip_bg }} transition">
+            {{ counts[key] }} {{ meta.label }}
+          </button>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- field list -->
+    <div class="flex-1 overflow-y-auto">
+      {% for f in queue %}
+      {% set meta = STATES[f.state] %}
+      <div x-show="!filterState || filterState==='{{ f.state }}'"
+           @click="select('{{ f.id }}')"
+           :class="selectedId==='{{ f.id }}' ? 'bg-slate-50 ring-1 ring-inset ring-slate-300' : 'hover:bg-slate-50/60'"
+           class="px-5 py-3 border-b border-slate-100 cursor-pointer {{ meta.border }} transition group">
+
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="text-[10px] mono text-slate-400">{{ f.form }} · Ln {{ f.line }}</span>
+              {% if f.source_type == 'calculated' %}
+                <span class="text-[10px] px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200">calculated</span>
+              {% elif f.source_type == 'manual' %}
+                <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 ring-1 ring-slate-200">human edit</span>
+              {% endif %}
+            </div>
+            <p class="text-sm mt-0.5 truncate">{{ f.label }}</p>
+          </div>
+
+          <div class="text-right shrink-0">
+            <div class="mono text-sm font-medium {% if f.state=='locked' %}text-slate-500{% endif %}">
+              {{ f.value | money }}
+            </div>
+            <span class="inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded ring-1 {{ meta.chip_bg }}">
+              {{ meta.label }}
+            </span>
+          </div>
+        </div>
+
+        {% if f.conflicts %}
+        <div class="mt-2 text-[11px] text-rose-700 bg-rose-50 rounded px-2 py-1.5 ring-1 ring-rose-100">
+          Two documents disagree on this figure — resolution required.
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <!-- ══════════ CENTER: SOURCE DOCUMENT ══════════ -->
+  <section class="flex-1 bg-slate-100 flex flex-col min-w-0">
+    <div class="px-5 py-3 bg-white border-b border-slate-200 flex items-center gap-3">
+      <template x-if="field && field.doc_meta">
+        <div class="min-w-0">
+          <p class="text-sm font-medium truncate" x-text="field.doc_meta.name"></p>
+          <p class="text-[11px] text-slate-500">
+            <span x-text="field.doc_meta.kind"></span> ·
+            Page <span x-text="field.page"></span> of <span x-text="field.doc_meta.pages"></span>
+            · uploaded <span x-text="field.doc_meta.uploaded_at"></span>
+          </p>
+        </div>
+      </template>
+      <template x-if="field && !field.doc_meta">
+        <div>
+          <p class="text-sm font-medium text-slate-600">No single source document</p>
+          <p class="text-[11px] text-slate-500">This value is derived — see the calculation chain.</p>
+        </div>
+      </template>
+    </div>
+
+    <!-- fake document page with highlight overlay -->
+    <div class="flex-1 overflow-auto p-6 grid place-items-center justify-center">
+      <template x-if="field && field.bbox">
+        <div class="relative bg-white shadow-lg ring-1 ring-slate-300 w-[560px] h-[calc(100vh-9.5rem)] max-h-[720px]">
+          <!-- simulated page content -->
+          <div class="absolute inset-0 p-8 select-none overflow-hidden">
+            <div class="text-[10px] mono text-slate-400 mb-4" x-text="field.doc_meta.name"></div>
+            <div class="h-2.5 bg-slate-200 rounded w-2/3 mb-6"></div>
+            <template x-for="i in 20" :key="i">
+              <div class="h-2 bg-slate-100 rounded mb-2.5"
+                   :style="`width:${55 + ((i*17)%40)}%`"></div>
+            </template>
+          </div>
+
+          <!-- the highlight -->
+          <div class="absolute rounded ring-2 ring-amber-500 bg-amber-300/25 transition-all duration-500"
+               :style="`left:${field.bbox.x}%; top:${field.bbox.y}%; width:${field.bbox.w}%; height:${field.bbox.h}%`">
+            <div class="absolute -top-6 left-0 text-[10px] px-1.5 py-0.5 rounded bg-amber-500 text-white font-medium whitespace-nowrap">
+              Source of this value
+            </div>
+            <div class="absolute inset-0 grid place-items-center px-2">
+              <span class="mono text-[11px] text-slate-800 truncate w-full" x-text="field.source_excerpt"></span>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <!-- calculation chain when there is no single source -->
+      <template x-if="field && !field.bbox && field.transformation">
+        <div class="bg-white rounded-lg shadow ring-1 ring-slate-200 w-[620px] p-6">
+          <h3 class="text-sm font-semibold">How this number was derived</h3>
+          <p class="mono text-[11px] text-slate-500 mt-1" x-text="field.transformation.formula"></p>
+
+          <div class="mt-5 space-y-1.5">
+            <template x-for="(s,i) in field.transformation.steps" :key="i">
+              <div class="flex items-center gap-3 py-2 px-3 rounded hover:bg-slate-50 group">
+                <span class="w-5 h-5 rounded-full bg-slate-100 grid place-items-center text-[10px] mono text-slate-500"
+                      x-text="i+1"></span>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm truncate" x-text="s.label"></p>
+                  <p class="text-[11px] text-slate-400" x-show="s.doc_name">
+                    <span x-text="s.doc_name"></span> · p.<span x-text="s.page"></span>
+                  </p>
+                </div>
+                <span class="mono text-sm" :class="s.value < 0 ? 'text-rose-600' : ''"
+                      x-text="fmt(s.value)"></span>
+              </div>
+            </template>
+          </div>
+
+          <div class="mt-3 pt-3 border-t border-slate-200 flex items-center justify-between px-3">
+            <span class="text-sm font-semibold">Result</span>
+            <span class="mono text-sm font-semibold" x-text="fmt(field.value)"></span>
+          </div>
+        </div>
+      </template>
+    </div>
+  </section>
+
+  <!-- ══════════ RIGHT: AI TRUST PANEL ══════════ -->
+  <aside class="w-[340px] border-l border-slate-200 bg-white flex flex-col overflow-y-auto" x-cloak>
+    <template x-if="field">
+    <div class="p-5">
+
+      <p class="text-[10px] mono text-slate-400" x-text="field.form + ' · Line ' + field.line"></p>
+      <h2 class="text-sm font-semibold mt-1" x-text="field.label"></h2>
+
+      <!-- value + state -->
+      <div class="mt-3 p-2.5 rounded-lg bg-slate-50 ring-1 ring-slate-200">
+        <div class="flex items-baseline justify-between gap-2">
+          <span class="mono text-lg font-semibold" x-text="fmt(field.value)"></span>
+          <span class="text-[10px] px-1.5 py-0.5 rounded ring-1 shrink-0"
+                :class="field.state_meta.chip_bg" x-text="field.state_meta.label"></span>
+        </div>
+        <p class="text-[11px] text-slate-500 mt-1" x-text="field.state_meta.meaning"></p>
+      </div>
+
+      <!-- confidence: banded, not a raw decimal -->
+      <template x-if="field.band">
+        <div class="mt-3">
+          <div class="flex items-center justify-between text-[11px]">
+            <span class="px-1.5 py-0.5 rounded ring-1" :class="field.band.cls" x-text="field.band.label"></span>
+            <span class="text-slate-400 mono" x-text="Math.round(field.confidence*100) + '%'"></span>
+          </div>
+          <div class="mt-1.5 h-1 rounded-full bg-slate-100 overflow-hidden">
+            <div class="h-full rounded-full transition-all duration-500"
+                 :class="field.band.key==='high' ? 'bg-emerald-500' : field.band.key==='medium' ? 'bg-amber-500' : 'bg-rose-500'"
+                 :style="`width:${field.confidence*100}%`"></div>
+          </div>
+        </div>
+      </template>
+
+      <!-- CONFLICT RESOLUTION: sits high, above the fold, because it is the
+           only thing on this panel that blocks the return from progressing -->
+      <template x-if="field.conflicts.length">
+        <div class="mt-3 p-3 rounded-lg bg-rose-50 ring-1 ring-rose-200">
+          <div class="flex items-baseline justify-between">
+            <h3 class="text-[11px] font-semibold uppercase tracking-wide text-rose-700">Conflict — pick one</h3>
+            <span class="text-[10px] text-rose-700 mono" x-text="fmt(field.conflicts[0].delta) + ' apart'"></span>
+          </div>
+          <div class="mt-2 grid grid-cols-2 gap-1.5">
+            <button @click="resolve(field.value, 'Accepted POS export figure.')"
+                    class="text-left p-2 rounded bg-white ring-1 ring-rose-200 hover:ring-rose-500 hover:shadow-sm transition">
+              <p class="mono text-[12px] font-semibold" x-text="fmt(field.value)"></p>
+              <p class="text-[10px] text-slate-500 mt-0.5">Use POS export</p>
+            </button>
+            <button @click="resolve(field.conflicts[0].competing_value, 'Accepted P&L figure.')"
+                    class="text-left p-2 rounded bg-white ring-1 ring-rose-200 hover:ring-rose-500 hover:shadow-sm transition">
+              <p class="mono text-[12px] font-semibold" x-text="fmt(field.conflicts[0].competing_value)"></p>
+              <p class="text-[10px] text-slate-500 mt-0.5">Use P&amp;L statement</p>
+            </button>
+          </div>
+          <details class="mt-2 group">
+            <summary class="text-[11px] text-rose-700 cursor-pointer hover:underline list-none">
+              Why these disagree
+            </summary>
+            <p class="text-[12px] text-rose-900 leading-relaxed mt-1.5"
+               x-text="field.conflicts[0].explanation"></p>
+          </details>
+        </div>
+      </template>
+
+      <!-- what the AI did and why -->
+      <div class="mt-5">
+        <h3 class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Why this value</h3>
+        <p class="text-[13px] text-slate-700 leading-relaxed mt-1.5" x-text="field.ai_rationale"></p>
+      </div>
+
+      <!-- evidence -->
+      <template x-if="field.evidence.length">
+        <div class="mt-5">
+          <h3 class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Supporting evidence</h3>
+          <div class="mt-1.5 space-y-1.5">
+            <template x-for="(e,i) in field.evidence" :key="i">
+              <div class="text-[12px] p-2 rounded bg-slate-50 ring-1 ring-slate-100">
+                <p class="text-slate-700" x-text="e.note"></p>
+                <p class="text-[10px] text-slate-400 mt-0.5" x-show="e.doc_name">
+                  <span x-text="e.doc_name"></span> · p.<span x-text="e.page"></span>
+                </p>
+              </div>
+            </template>
+          </div>
+        </div>
+      </template>
+
+      <!-- LOCKED EXPLANATION -->
+      <template x-if="field.state === 'locked'">
+        <div class="mt-5 p-3 rounded-lg bg-slate-100 ring-1 ring-slate-300 hatch">
+          <h3 class="text-[11px] font-semibold uppercase tracking-wide text-slate-600">Why you can't edit this</h3>
+          <p class="text-[12px] text-slate-700 leading-relaxed mt-1.5" x-text="field.lock_reason"></p>
+        </div>
+      </template>
+
+      <!-- CORRECTION -->
+      <template x-if="field.state !== 'locked'">
+        <div class="mt-5" x-data="{ open:false, val:'', why:'' }">
+          <button x-show="!open" @click="open=true; val=field.value"
+                  class="w-full py-2 rounded-lg bg-slate-900 text-white text-[13px] font-medium hover:bg-slate-800 transition">
+            Correct this value
+          </button>
+          <div x-show="open" x-cloak class="p-3 rounded-lg ring-1 ring-slate-300 bg-slate-50">
+            <label class="text-[11px] font-medium text-slate-600">Corrected value</label>
+            <input x-model="val" type="number" step="0.01"
+                   class="w-full mt-1 px-2 py-1.5 rounded ring-1 ring-slate-300 mono text-sm focus:ring-2 focus:ring-slate-900 outline-none">
+            <label class="text-[11px] font-medium text-slate-600 mt-2 block">Reason (kept in the audit trail)</label>
+            <textarea x-model="why" rows="2" placeholder="Why is the AI value wrong?"
+                      class="w-full mt-1 px-2 py-1.5 rounded ring-1 ring-slate-300 text-[12px] focus:ring-2 focus:ring-slate-900 outline-none"></textarea>
+            <div class="flex gap-2 mt-2">
+              <button @click="override(val, why); open=false"
+                      class="flex-1 py-1.5 rounded bg-slate-900 text-white text-[12px] font-medium">Save</button>
+              <button @click="open=false"
+                      class="px-3 py-1.5 rounded ring-1 ring-slate-300 text-[12px]">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <!-- AUDIT TRAIL: the AI's original suggestion survives the correction -->
+      <template x-if="field.override_history.length">
+        <div class="mt-5">
+          <h3 class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Correction history</h3>
+          <template x-for="(h,i) in field.override_history" :key="i">
+            <div class="mt-1.5 p-2.5 rounded bg-white ring-1 ring-slate-200">
+              <div class="flex items-center gap-2 mono text-[12px]">
+                <span class="text-slate-400 line-through" x-text="fmt(h.from)"></span>
+                <span class="text-slate-300">→</span>
+                <span class="font-medium" x-text="fmt(h.to)"></span>
+              </div>
+              <p class="text-[11px] text-slate-600 mt-1.5 leading-relaxed" x-text="h.reason"></p>
+              <p class="text-[10px] text-slate-400 mt-1">
+                <span x-text="h.by"></span> · <span x-text="h.at"></span>
+              </p>
+            </div>
+          </template>
+        </div>
+      </template>
+
+    </div>
+    </template>
+  </aside>
+</div>
+
+<script>
+function reviewApp() {
+  return {
+    selectedId: null,
+    field: null,
+    filterState: null,
+    fmt(v) {
+      if (v === null || v === undefined) return '—';
+      const s = '$' + Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:2, maximumFractionDigits:2});
+      return v < 0 ? '(' + s + ')' : s;
+    },
+    async select(id) {
+      this.selectedId = id;
+      const r = await fetch(`/api/field/${id}`);
+      this.field = await r.json();
+    },
+    async override(value, reason) {
+      await fetch(`/api/field/${this.selectedId}/override`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({value, reason})
+      });
+      location.reload();
+    },
+    async resolve(value, reason) {
+      await fetch(`/api/field/${this.selectedId}/resolve`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({value, reason})
+      });
+      location.reload();
+    }
+  }
+}
+</script>
+{% endblock %}
