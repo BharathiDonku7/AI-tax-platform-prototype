@@ -94,7 +94,7 @@
     </div>
 
     <!-- fake document page with highlight overlay -->
-    <div class="flex-1 overflow-auto p-6 grid place-items-center justify-center">
+    <div class="flex-1 overflow-y-auto overflow-x-hidden p-6 grid place-items-center justify-center">
       <template x-if="field && field.bbox">
         <div class="relative bg-white shadow-lg ring-1 ring-slate-300 w-[560px] h-[calc(100vh-9.5rem)] max-h-[720px]">
           <!-- simulated page content -->
@@ -122,9 +122,9 @@
 
       <!-- calculation chain when there is no single source -->
       <template x-if="field && !field.bbox && field.transformation">
-        <div class="bg-white rounded-lg shadow ring-1 ring-slate-200 w-[620px] p-6">
+        <div class="bg-white rounded-lg shadow ring-1 ring-slate-200 w-full max-w-[620px] p-6">
           <h3 class="text-sm font-semibold">How this number was derived</h3>
-          <p class="mono text-[11px] text-slate-500 mt-1" x-text="field.transformation.formula"></p>
+          <p class="mono text-[11px] text-slate-500 mt-1 break-words" x-text="field.transformation.formula"></p>
 
           <div class="mt-5 space-y-1.5">
             <template x-for="(s,i) in field.transformation.steps" :key="i">
