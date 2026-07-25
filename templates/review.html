@@ -4,20 +4,31 @@
 
 <div x-data="reviewApp()" x-init="select('f_gross_receipts')" class="flex h-[calc(100vh-3.5rem)]">
 
-  <!-- ══════════ LEFT: THE RETURN ══════════ -->
-  <section class="w-[38%] min-w-[420px] border-r border-slate-200 bg-white flex flex-col">
+  <!-- ═════════════════ LEFT: THE RETURN ═════════════════ -->
+  <section class="w-[33%] min-w-[380px] border-r border-slate-200 bg-white flex flex-col">
 
-    <div class="px-5 py-4 border-b border-slate-200">
-      <div class="flex items-baseline justify-between">
-        <div>
-          <h1 class="font-semibold tracking-tight">Verdant Retail Holdings, LLC</h1>
-          <p class="text-xs text-slate-500 mt-0.5">Form 1120 · FY2025 · Cannabis retail · Sec. 280E applies</p>
+    <div class="px-4 py-3 border-b border-slate-200">
+      <div class="flex items-baseline justify-between gap-2">
+        <div class="min-w-0">
+          <h1 class="font-semibold tracking-tight text-[15px] truncate">Verdant Retail Holdings, LLC</h1>
+          <p class="text-[11px] text-slate-500 mt-0.5">Form 1120 · FY2025 · Cannabis retail · Sec. 280E applies</p>
         </div>
-        <span class="text-[11px] px-2 py-1 rounded bg-slate-100 text-slate-600 mono">EIN ••-•••4471</span>
+        <span class="text-[10px] px-1.5 py-1 rounded bg-slate-100 text-slate-600 mono shrink-0">EIN ••-•••4471</span>
       </div>
 
-      <!-- status ribbon: counts by state -->
-      <div class="flex gap-1.5 mt-3">
+      <div class="flex items-center gap-2 mt-2.5 text-[11px] text-slate-500">
+        <span class="mono">{{ total_fields }} fields</span>
+        <span class="text-slate-300">·</span>
+        <span class="mono">{{ doc_count }} source documents</span>
+        <span class="text-slate-300">·</span>
+        <span class="mono font-medium text-slate-700" x-text="openItems + ' open'"></span>
+      </div>
+
+      <input x-model="q" type="search" placeholder="Search fields…"
+             class="w-full mt-2.5 px-2.5 py-1.5 rounded-md ring-1 ring-slate-300 text-[13px]
+                    focus:ring-2 focus:ring-slate-900 outline-none">
+
+      <div class="flex flex-wrap gap-1.5 mt-2">
         {% for key, meta in STATES.items() %}
           {% if counts[key] %}
           <button @click="filterState = (filterState==='{{key}}' ? null : '{{key}}')"
@@ -30,149 +41,290 @@
       </div>
     </div>
 
-    <!-- field list -->
     <div class="flex-1 overflow-y-auto">
-      {% for f in queue %}
-      {% set meta = STATES[f.state] %}
-      <div x-show="!filterState || filterState==='{{ f.state }}'"
-           @click="select('{{ f.id }}')"
-           :class="selectedId==='{{ f.id }}' ? 'bg-slate-50 ring-1 ring-inset ring-slate-300' : 'hover:bg-slate-50/60'"
-           class="px-5 py-3 border-b border-slate-100 cursor-pointer {{ meta.border }} transition group">
-
-        <div class="flex items-start justify-between gap-3">
-          <div class="min-w-0">
-            <div class="flex items-center gap-2">
-              <span class="text-[10px] mono text-slate-400">{{ f.form }} · Ln {{ f.line }}</span>
-              {% if f.source_type == 'calculated' %}
-                <span class="text-[10px] px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200">calculated</span>
-              {% elif f.source_type == 'manual' %}
-                <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 ring-1 ring-slate-200">human edit</span>
-              {% endif %}
-            </div>
-            <p class="text-sm mt-0.5 truncate">{{ f.label }}</p>
-          </div>
-
-          <div class="text-right shrink-0">
-            <div class="mono text-sm font-medium {% if f.state=='locked' %}text-slate-500{% endif %}">
-              {{ f.value | money }}
-            </div>
-            <span class="inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded ring-1 {{ meta.chip_bg }}">
-              {{ meta.label }}
-            </span>
-          </div>
+      {% for section_name, section_fields in sections %}
+      <div x-show="sectionVisible('{{ section_name }}')">
+        <div class="px-4 py-1.5 bg-slate-50 border-y border-slate-200 sticky top-0 z-10">
+          <span class="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{{ section_name }}</span>
+          <span class="text-[10px] mono text-slate-400 ml-1.5" x-text="sectionCount('{{ section_name }}')"></span>
         </div>
 
-        {% if f.conflicts %}
-        <div class="mt-2 text-[11px] text-rose-700 bg-rose-50 rounded px-2 py-1.5 ring-1 ring-rose-100">
-          Two documents disagree on this figure — resolution required.
+        {% for f in section_fields %}
+        {% set meta = STATES[f.state] %}
+        <div x-show="visible('{{ f.id }}')"
+             @click="select('{{ f.id }}')"
+             :class="selectedId==='{{ f.id }}' ? 'bg-slate-50 ring-1 ring-inset ring-slate-300' : 'hover:bg-slate-50/60'"
+             class="px-4 py-2.5 border-b border-slate-100 cursor-pointer {{ meta.border }} transition"
+             data-label="{{ f.label|lower }} {{ f.line|lower }}">
+
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="text-[10px] mono text-slate-400">Ln {{ f.line }}</span>
+                {% if f.source_type == 'calculated' %}
+                  <span class="text-[9px] px-1 py-0.5 rounded bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200">calculated</span>
+                {% elif f.source_type == 'manual' %}
+                  <span class="text-[9px] px-1 py-0.5 rounded bg-slate-100 text-slate-600 ring-1 ring-slate-200">human edit</span>
+                {% endif %}
+              </div>
+              <p class="text-[13px] mt-0.5 leading-snug">{{ f.label }}</p>
+            </div>
+
+            <div class="text-right shrink-0">
+              <div class="mono text-[13px] font-medium {% if f.state=='locked' %}text-slate-500{% endif %}"
+                   {% if f.id %}x-text="displayValue('{{ f.id }}', '{{ f.value | money }}')"{% endif %}>
+                {{ f.value | money }}
+              </div>
+              <span class="inline-block mt-1 text-[9px] px-1.5 py-0.5 rounded ring-1"
+                    :class="chipOf('{{ f.id }}', '{{ meta.chip_bg }}')"
+                    x-text="labelOf('{{ f.id }}', '{{ meta.label }}')">{{ meta.label }}</span>
+            </div>
+          </div>
+
+          {% if f.conflicts %}
+          <div x-show="hasConflict('{{ f.id }}')"
+               class="mt-1.5 text-[11px] text-rose-700 bg-rose-50 rounded px-2 py-1 ring-1 ring-rose-100">
+            Two documents disagree — resolution required.
+          </div>
+          {% endif %}
         </div>
-        {% endif %}
+        {% endfor %}
       </div>
       {% endfor %}
     </div>
   </section>
 
-  <!-- ══════════ CENTER: SOURCE DOCUMENT ══════════ -->
+  <!-- ═════════════════ CENTER: SOURCE DOCUMENT ═════════════════ -->
   <section class="flex-1 bg-slate-100 flex flex-col min-w-0">
-    <div class="px-5 py-3 bg-white border-b border-slate-200 flex items-center gap-3">
-      <template x-if="field && field.doc_meta">
-        <div class="min-w-0">
-          <p class="text-sm font-medium truncate" x-text="field.doc_meta.name"></p>
+
+    <!-- document header + page nav -->
+    <div class="px-4 py-2.5 bg-white border-b border-slate-200 flex items-center gap-3 min-h-[3.5rem]">
+      <template x-if="page && page.doc_name">
+        <div class="min-w-0 flex-1">
+          <p class="text-[13px] font-medium truncate" x-text="page.doc_name"></p>
           <p class="text-[11px] text-slate-500">
-            <span x-text="field.doc_meta.kind"></span> ·
-            Page <span x-text="field.page"></span> of <span x-text="field.doc_meta.pages"></span>
-            · uploaded <span x-text="field.doc_meta.uploaded_at"></span>
+            <span x-text="page.doc_kind"></span>
+            <span class="text-slate-300"> · </span>
+            <span x-text="page.page ? page.page.title : 'Not indexed'"></span>
+            <span class="text-slate-300"> · </span>
+            uploaded <span x-text="page.uploaded_at"></span>
           </p>
         </div>
       </template>
-      <template x-if="field && !field.doc_meta">
-        <div>
-          <p class="text-sm font-medium text-slate-600">No single source document</p>
-          <p class="text-[11px] text-slate-500">This value is derived — see the calculation chain.</p>
+      <template x-if="!page && field && field.transformation">
+        <div class="min-w-0 flex-1">
+          <p class="text-[13px] font-medium text-slate-600">No single source document</p>
+          <p class="text-[11px] text-slate-500">This value is derived — every input is traced below.</p>
+        </div>
+      </template>
+
+      <!-- page navigation -->
+      <template x-if="page">
+        <div class="flex items-center gap-1.5 shrink-0">
+          <button @click="goPage(page.page_no - 1)" :disabled="page.page_no <= 1"
+                  class="w-7 h-7 rounded ring-1 ring-slate-300 text-slate-600 disabled:opacity-30
+                         hover:bg-slate-50 transition grid place-items-center text-[13px]">‹</button>
+          <span class="text-[11px] mono text-slate-600 tabular-nums px-1">
+            <span x-text="page.page_no"></span> / <span x-text="page.page_count"></span>
+          </span>
+          <button @click="goPage(page.page_no + 1)" :disabled="page.page_no >= page.page_count"
+                  class="w-7 h-7 rounded ring-1 ring-slate-300 text-slate-600 disabled:opacity-30
+                         hover:bg-slate-50 transition grid place-items-center text-[13px]">›</button>
+          <button x-show="field && field.page && page.page_no !== field.page"
+                  @click="goPage(field.page)"
+                  class="ml-1 px-2 h-7 rounded bg-amber-100 text-amber-800 ring-1 ring-amber-300
+                         text-[11px] font-medium hover:bg-amber-200 transition">
+            Back to source
+          </button>
         </div>
       </template>
     </div>
 
-    <!-- fake document page with highlight overlay -->
-    <div class="flex-1 overflow-y-auto overflow-x-hidden p-6 grid place-items-center justify-center">
-      <template x-if="field && field.bbox">
-        <div class="relative bg-white shadow-lg ring-1 ring-slate-300 w-[560px] h-[calc(100vh-9.5rem)] max-h-[720px]">
-          <!-- simulated page content -->
-          <div class="absolute inset-0 p-8 select-none overflow-hidden">
-            <div class="text-[10px] mono text-slate-400 mb-4" x-text="field.doc_meta.name"></div>
-            <div class="h-2.5 bg-slate-200 rounded w-2/3 mb-6"></div>
-            <template x-for="i in 20" :key="i">
-              <div class="h-2 bg-slate-100 rounded mb-2.5"
-                   :style="`width:${55 + ((i*17)%40)}%`"></div>
-            </template>
-          </div>
+    <!-- document body -->
+    <div class="flex-1 overflow-y-auto overflow-x-hidden p-6 flex justify-center">
 
-          <!-- the highlight -->
-          <div class="absolute rounded ring-2 ring-amber-500 bg-amber-300/25 transition-all duration-500"
-               :style="`left:${field.bbox.x}%; top:${field.bbox.y}%; width:${field.bbox.w}%; height:${field.bbox.h}%`">
-            <div class="absolute -top-6 left-0 text-[10px] px-1.5 py-0.5 rounded bg-amber-500 text-white font-medium whitespace-nowrap">
-              Source of this value
+      <!-- rendered page -->
+      <template x-if="page">
+        <div class="bg-white shadow-lg ring-1 ring-slate-300 w-full max-w-[680px] h-fit">
+
+          <template x-if="page.indexed">
+            <div class="p-8">
+              <div class="pb-3 border-b border-slate-200">
+                <p class="text-[13px] font-semibold" x-text="page.page.title"></p>
+                <p class="text-[11px] text-slate-500 mt-0.5" x-show="page.page.subtitle"
+                   x-text="page.page.subtitle"></p>
+              </div>
+
+              <!-- STATEMENT layout -->
+              <template x-if="page.page.layout === 'statement'">
+                <div class="mt-4">
+                  <template x-for="row in page.page.rows" :key="row.id || Math.random()">
+                    <div>
+                      <div x-show="row.kind === 'blank'" class="h-3"></div>
+
+                      <div x-show="row.kind === 'header'"
+                           class="text-[11px] font-semibold tracking-wider text-slate-500 mt-2 mb-1.5"
+                           x-text="row.label"></div>
+
+                      <div x-show="row.kind === 'note'"
+                           class="text-[11px] text-slate-500 italic leading-relaxed mt-3 pl-3 border-l-2 border-slate-200"
+                           :class="isSource(row.id) ? 'bg-amber-100 border-amber-500 -ml-1 pl-4 py-1.5 rounded-r' : ''"
+                           x-text="row.label"></div>
+
+                      <div x-show="['line','subtotal','total'].includes(row.kind)"
+                           :id="'row-' + row.id"
+                           :class="[
+                             isSource(row.id) ? 'bg-amber-200/70 ring-2 ring-amber-500 rounded px-2 -mx-2' : '',
+                             row.kind === 'total' ? 'border-t-2 border-slate-800 mt-1.5 pt-1.5 font-semibold' : '',
+                             row.kind === 'subtotal' ? 'border-t border-slate-300 mt-1 pt-1 font-medium' : ''
+                           ]"
+                           class="flex items-baseline justify-between gap-4 py-[3px] text-[12.5px] transition-all duration-300 relative">
+                        <span x-text="row.label" class="leading-snug"></span>
+                        <span class="mono tabular-nums shrink-0"
+                              :class="row.amount < 0 ? 'text-rose-600' : ''"
+                              x-text="fmtPlain(row.amount)"></span>
+                        <span x-show="isSource(row.id)"
+                              class="absolute -top-5 left-0 text-[9px] px-1.5 py-0.5 rounded bg-amber-500
+                                     text-white font-medium whitespace-nowrap">Source of this value</span>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+              </template>
+
+              <!-- TABLE / LEDGER layout -->
+              <template x-if="['table','ledger'].includes(page.page.layout)">
+                <div class="mt-4">
+                  <div class="flex gap-3 pb-1.5 border-b border-slate-300 text-[10px] font-semibold
+                              tracking-wider text-slate-500">
+                    <template x-for="(c, ci) in page.page.columns" :key="ci">
+                      <span :class="ci === 0 ? 'flex-1' : 'w-24 text-right'" x-text="c"></span>
+                    </template>
+                  </div>
+
+                  <template x-for="row in page.page.rows" :key="row.id || Math.random()">
+                    <div>
+                      <div x-show="row.kind === 'blank'" class="h-2.5"></div>
+
+                      <div x-show="row.kind === 'note'"
+                           class="text-[11px] text-slate-500 italic leading-relaxed mt-3 pl-3 border-l-2 border-slate-200"
+                           :class="isSource(row.id) ? 'bg-amber-100 border-amber-500 -ml-1 pl-4 py-1.5 rounded-r' : ''"
+                           x-text="row.label"></div>
+
+                      <div x-show="row.cols"
+                           :id="'row-' + row.id"
+                           :class="[
+                             isSource(row.id) ? 'bg-amber-200/70 ring-2 ring-amber-500 rounded px-2 -mx-2' : '',
+                             row.kind === 'total' ? 'border-t-2 border-slate-800 mt-1 pt-1 font-semibold' : '',
+                             row.kind === 'subtotal' ? 'border-t border-slate-300 mt-1 pt-1 font-medium' : ''
+                           ]"
+                           class="flex gap-3 py-[3px] text-[12px] mono tabular-nums transition-all duration-300 relative">
+                        <template x-for="(c, ci) in row.cols" :key="ci">
+                          <span :class="ci === 0 ? 'flex-1 truncate' : 'w-24 text-right'"
+                                x-text="c"></span>
+                        </template>
+                        <span x-show="isSource(row.id)"
+                              class="absolute -top-5 left-0 text-[9px] px-1.5 py-0.5 rounded bg-amber-500
+                                     text-white font-medium whitespace-nowrap">Source of this value</span>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+              </template>
+
+              <!-- LEGAL layout -->
+              <template x-if="page.page.layout === 'legal'">
+                <div class="mt-4 space-y-3">
+                  <template x-for="row in page.page.rows" :key="row.id || Math.random()">
+                    <p :id="'row-' + row.id"
+                       :class="isSource(row.id) ? 'bg-amber-200/60 ring-2 ring-amber-500 rounded px-2.5 py-2 -mx-1' : ''"
+                       class="text-[12px] leading-relaxed text-slate-700 transition-all duration-300 relative"
+                       x-text="row.label">
+                    </p>
+                  </template>
+                </div>
+              </template>
             </div>
-            <div class="absolute inset-0 grid place-items-center px-2">
-              <span class="mono text-[11px] text-slate-800 truncate w-full" x-text="field.source_excerpt"></span>
+          </template>
+
+          <!-- honest handling of pages we didn't author -->
+          <template x-if="!page.indexed">
+            <div class="p-10 text-center">
+              <p class="text-[13px] font-medium text-slate-600">Page not indexed in this prototype</p>
+              <p class="text-[12px] text-slate-500 mt-1.5 leading-relaxed max-w-sm mx-auto">
+                This document has <span x-text="page.page_count"></span> pages. Only the pages
+                referenced by return fields were authored with content.
+              </p>
+              <div class="mt-4 flex flex-wrap gap-1.5 justify-center">
+                <template x-for="p in page.indexed_pages" :key="p">
+                  <button @click="goPage(p)"
+                          class="px-2 py-1 rounded text-[11px] mono ring-1 ring-slate-300
+                                 hover:bg-slate-50 transition">
+                    Page <span x-text="p"></span>
+                  </button>
+                </template>
+              </div>
             </div>
-          </div>
+          </template>
         </div>
       </template>
 
-      <!-- calculation chain when there is no single source -->
-      <template x-if="field && !field.bbox && field.transformation">
-        <div class="bg-white rounded-lg shadow ring-1 ring-slate-200 w-full max-w-[620px] p-6">
-          <h3 class="text-sm font-semibold">How this number was derived</h3>
-          <p class="mono text-[11px] text-slate-500 mt-1 break-words" x-text="field.transformation.formula"></p>
+      <!-- derivation chain -->
+      <template x-if="!page && field && field.transformation">
+        <div class="bg-white rounded-lg shadow ring-1 ring-slate-200 w-full max-w-[680px] h-fit p-6">
+          <h3 class="text-[13px] font-semibold">How this number was derived</h3>
+          <p class="mono text-[11px] text-slate-500 mt-1 break-words"
+             x-text="field.transformation.formula"></p>
 
-          <div class="mt-5 space-y-1.5">
+          <div class="mt-4 space-y-1">
             <template x-for="(s,i) in field.transformation.steps" :key="i">
-              <div class="flex items-center gap-3 py-2 px-3 rounded hover:bg-slate-50 group">
-                <span class="w-5 h-5 rounded-full bg-slate-100 grid place-items-center text-[10px] mono text-slate-500"
-                      x-text="i+1"></span>
+              <div class="flex items-center gap-3 py-2 px-2.5 rounded transition"
+                   :class="s.doc ? 'hover:bg-amber-50 cursor-pointer' : ''"
+                   @click="s.doc && openStep(s)">
+                <span class="w-5 h-5 rounded-full bg-slate-100 grid place-items-center
+                             text-[10px] mono text-slate-500 shrink-0" x-text="i+1"></span>
                 <div class="flex-1 min-w-0">
-                  <p class="text-sm truncate" x-text="s.label"></p>
-                  <p class="text-[11px] text-slate-400" x-show="s.doc_name">
+                  <p class="text-[12.5px] truncate" x-text="s.label"></p>
+                  <p class="text-[10px] text-slate-400 truncate" x-show="s.doc_name">
                     <span x-text="s.doc_name"></span> · p.<span x-text="s.page"></span>
+                    <span class="text-amber-600 font-medium"> — click to view</span>
                   </p>
                 </div>
-                <span class="mono text-sm" :class="s.value < 0 ? 'text-rose-600' : ''"
-                      x-text="fmt(s.value)"></span>
+                <span class="mono text-[12.5px] tabular-nums shrink-0"
+                      :class="s.value < 0 ? 'text-rose-600' : ''"
+                      x-text="fmtStep(s.value)"></span>
               </div>
             </template>
           </div>
 
-          <div class="mt-3 pt-3 border-t border-slate-200 flex items-center justify-between px-3">
-            <span class="text-sm font-semibold">Result</span>
-            <span class="mono text-sm font-semibold" x-text="fmt(field.value)"></span>
+          <div class="mt-3 pt-2.5 border-t-2 border-slate-800 flex items-center justify-between px-2.5">
+            <span class="text-[13px] font-semibold">Result</span>
+            <span class="mono text-[13px] font-semibold tabular-nums" x-text="fmt(field.value)"></span>
           </div>
         </div>
       </template>
     </div>
   </section>
 
-  <!-- ══════════ RIGHT: AI TRUST PANEL ══════════ -->
-  <aside class="w-[340px] border-l border-slate-200 bg-white flex flex-col overflow-y-auto" x-cloak>
+  <!-- ═════════════════ RIGHT: AI TRUST PANEL ═════════════════ -->
+  <aside class="w-[330px] shrink-0 border-l border-slate-200 bg-white flex flex-col overflow-y-auto" x-cloak>
     <template x-if="field">
-    <div class="p-5">
+    <div class="p-4">
 
       <p class="text-[10px] mono text-slate-400" x-text="field.form + ' · Line ' + field.line"></p>
-      <h2 class="text-sm font-semibold mt-1" x-text="field.label"></h2>
+      <h2 class="text-[13px] font-semibold mt-0.5 leading-snug" x-text="field.label"></h2>
 
-      <!-- value + state -->
       <div class="mt-3 p-2.5 rounded-lg bg-slate-50 ring-1 ring-slate-200">
         <div class="flex items-baseline justify-between gap-2">
-          <span class="mono text-lg font-semibold" x-text="fmt(field.value)"></span>
+          <span class="mono text-lg font-semibold tabular-nums" x-text="fmt(field.value)"></span>
           <span class="text-[10px] px-1.5 py-0.5 rounded ring-1 shrink-0"
                 :class="field.state_meta.chip_bg" x-text="field.state_meta.label"></span>
         </div>
         <p class="text-[11px] text-slate-500 mt-1" x-text="field.state_meta.meaning"></p>
       </div>
 
-      <!-- confidence: banded, not a raw decimal -->
       <template x-if="field.band">
-        <div class="mt-3">
+        <div class="mt-2.5">
           <div class="flex items-center justify-between text-[11px]">
             <span class="px-1.5 py-0.5 rounded ring-1" :class="field.band.cls" x-text="field.band.label"></span>
             <span class="text-slate-400 mono" x-text="Math.round(field.confidence*100) + '%'"></span>
@@ -185,50 +337,52 @@
         </div>
       </template>
 
-      <!-- CONFLICT RESOLUTION: sits high, above the fold, because it is the
-           only thing on this panel that blocks the return from progressing -->
+      <!-- CONFLICT: sits high, because it is the only thing here that blocks
+           the return from progressing -->
       <template x-if="field.conflicts.length">
-        <div class="mt-3 p-3 rounded-lg bg-rose-50 ring-1 ring-rose-200">
-          <div class="flex items-baseline justify-between">
-            <h3 class="text-[11px] font-semibold uppercase tracking-wide text-rose-700">Conflict — pick one</h3>
-            <span class="text-[10px] text-rose-700 mono" x-text="fmt(field.conflicts[0].delta) + ' apart'"></span>
+        <div class="mt-3 p-2.5 rounded-lg bg-rose-50 ring-1 ring-rose-200">
+          <div class="flex items-baseline justify-between gap-2">
+            <h3 class="text-[10px] font-semibold uppercase tracking-wide text-rose-700">Conflict — pick one</h3>
+            <span class="text-[10px] text-rose-700 mono shrink-0" x-text="fmt(field.conflicts[0].delta) + ' apart'"></span>
           </div>
           <div class="mt-2 grid grid-cols-2 gap-1.5">
-            <button @click="resolve(field.value, 'Accepted POS export figure.')"
+            <button @click="resolve(field.value, 'Accepted the extracted figure.')"
                     class="text-left p-2 rounded bg-white ring-1 ring-rose-200 hover:ring-rose-500 hover:shadow-sm transition">
-              <p class="mono text-[12px] font-semibold" x-text="fmt(field.value)"></p>
-              <p class="text-[10px] text-slate-500 mt-0.5">Use POS export</p>
+              <p class="mono text-[11.5px] font-semibold tabular-nums" x-text="fmt(field.value)"></p>
+              <p class="text-[9.5px] text-slate-500 mt-0.5 leading-tight"
+                 x-text="'Keep ' + (field.doc_short || 'current')"></p>
             </button>
-            <button @click="resolve(field.conflicts[0].competing_value, 'Accepted P&L figure.')"
+            <button @click="resolve(field.conflicts[0].competing_value, 'Accepted the competing document figure.')"
                     class="text-left p-2 rounded bg-white ring-1 ring-rose-200 hover:ring-rose-500 hover:shadow-sm transition">
-              <p class="mono text-[12px] font-semibold" x-text="fmt(field.conflicts[0].competing_value)"></p>
-              <p class="text-[10px] text-slate-500 mt-0.5">Use P&amp;L statement</p>
+              <p class="mono text-[11.5px] font-semibold tabular-nums" x-text="fmt(field.conflicts[0].competing_value)"></p>
+              <p class="text-[9.5px] text-slate-500 mt-0.5 leading-tight" x-text="'Use ' + field.conflicts[0].competing_doc_short"></p>
             </button>
           </div>
-          <details class="mt-2 group">
-            <summary class="text-[11px] text-rose-700 cursor-pointer hover:underline list-none">
-              Why these disagree
-            </summary>
-            <p class="text-[12px] text-rose-900 leading-relaxed mt-1.5"
-               x-text="field.conflicts[0].explanation"></p>
+          <button @click="viewCompeting()"
+                  class="mt-1.5 w-full text-[10.5px] text-rose-700 hover:underline text-left">
+            View the competing figure in its document →
+          </button>
+          <details class="mt-1.5">
+            <summary class="text-[10.5px] text-rose-700 cursor-pointer hover:underline list-none">Why these disagree</summary>
+            <p class="text-[11.5px] text-rose-900 leading-relaxed mt-1.5" x-text="field.conflicts[0].explanation"></p>
           </details>
         </div>
       </template>
 
-      <!-- what the AI did and why -->
-      <div class="mt-5">
-        <h3 class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Why this value</h3>
-        <p class="text-[13px] text-slate-700 leading-relaxed mt-1.5" x-text="field.ai_rationale"></p>
+      <div class="mt-4">
+        <h3 class="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Why this value</h3>
+        <p class="text-[12px] text-slate-700 leading-relaxed mt-1.5" x-text="field.ai_rationale"></p>
       </div>
 
-      <!-- evidence -->
       <template x-if="field.evidence.length">
-        <div class="mt-5">
-          <h3 class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Supporting evidence</h3>
+        <div class="mt-4">
+          <h3 class="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Supporting evidence</h3>
           <div class="mt-1.5 space-y-1.5">
             <template x-for="(e,i) in field.evidence" :key="i">
-              <div class="text-[12px] p-2 rounded bg-slate-50 ring-1 ring-slate-100">
-                <p class="text-slate-700" x-text="e.note"></p>
+              <div @click="e.doc && goDoc(e.doc, e.page)"
+                   class="text-[11.5px] p-2 rounded bg-slate-50 ring-1 ring-slate-100 transition"
+                   :class="e.doc ? 'cursor-pointer hover:ring-amber-300 hover:bg-amber-50' : ''">
+                <p class="text-slate-700 leading-snug" x-text="e.note"></p>
                 <p class="text-[10px] text-slate-400 mt-0.5" x-show="e.doc_name">
                   <span x-text="e.doc_name"></span> · p.<span x-text="e.page"></span>
                 </p>
@@ -238,45 +392,55 @@
         </div>
       </template>
 
-      <!-- LOCKED EXPLANATION -->
       <template x-if="field.state === 'locked'">
-        <div class="mt-5 p-3 rounded-lg bg-slate-100 ring-1 ring-slate-300 hatch">
-          <h3 class="text-[11px] font-semibold uppercase tracking-wide text-slate-600">Why you can't edit this</h3>
-          <p class="text-[12px] text-slate-700 leading-relaxed mt-1.5" x-text="field.lock_reason"></p>
+        <div class="mt-4 p-2.5 rounded-lg bg-slate-100 ring-1 ring-slate-300 hatch">
+          <h3 class="text-[10px] font-semibold uppercase tracking-wide text-slate-600">Why you can't edit this</h3>
+          <p class="text-[11.5px] text-slate-700 leading-relaxed mt-1.5" x-text="field.lock_reason"></p>
         </div>
       </template>
 
-      <!-- CORRECTION -->
+      <!-- accept / correct -->
       <template x-if="field.state !== 'locked'">
-        <div class="mt-5" x-data="{ open:false, val:'', why:'' }">
-          <button x-show="!open" @click="open=true; val=field.value"
-                  class="w-full py-2 rounded-lg bg-slate-900 text-white text-[13px] font-medium hover:bg-slate-800 transition">
-            Correct this value
-          </button>
-          <div x-show="open" x-cloak class="p-3 rounded-lg ring-1 ring-slate-300 bg-slate-50">
-            <label class="text-[11px] font-medium text-slate-600">Corrected value</label>
+        <div class="mt-4" x-data="{ open:false, val:'', why:'' }">
+          <div x-show="!open" class="space-y-1.5">
+            <button x-show="field.state !== 'verified' && !field.conflicts.length"
+                    @click="accept()"
+                    class="w-full py-2 rounded-lg bg-emerald-600 text-white text-[12.5px] font-medium
+                           hover:bg-emerald-700 transition">
+              Accept as verified
+            </button>
+            <button @click="open=true; val=field.value; why=''"
+                    class="w-full py-2 rounded-lg bg-slate-900 text-white text-[12.5px] font-medium
+                           hover:bg-slate-800 transition">
+              Correct this value
+            </button>
+          </div>
+
+          <div x-show="open" x-cloak class="p-2.5 rounded-lg ring-1 ring-slate-300 bg-slate-50">
+            <label class="text-[10.5px] font-medium text-slate-600">Corrected value</label>
             <input x-model="val" type="number" step="0.01"
-                   class="w-full mt-1 px-2 py-1.5 rounded ring-1 ring-slate-300 mono text-sm focus:ring-2 focus:ring-slate-900 outline-none">
-            <label class="text-[11px] font-medium text-slate-600 mt-2 block">Reason (kept in the audit trail)</label>
+                   class="w-full mt-1 px-2 py-1.5 rounded ring-1 ring-slate-300 mono text-[13px]
+                          focus:ring-2 focus:ring-slate-900 outline-none">
+            <label class="text-[10.5px] font-medium text-slate-600 mt-2 block">Reason (kept in the audit trail)</label>
             <textarea x-model="why" rows="2" placeholder="Why is the AI value wrong?"
-                      class="w-full mt-1 px-2 py-1.5 rounded ring-1 ring-slate-300 text-[12px] focus:ring-2 focus:ring-slate-900 outline-none"></textarea>
-            <div class="flex gap-2 mt-2">
+                      class="w-full mt-1 px-2 py-1.5 rounded ring-1 ring-slate-300 text-[11.5px]
+                             focus:ring-2 focus:ring-slate-900 outline-none"></textarea>
+            <div class="flex gap-1.5 mt-2">
               <button @click="override(val, why); open=false"
-                      class="flex-1 py-1.5 rounded bg-slate-900 text-white text-[12px] font-medium">Save</button>
-              <button @click="open=false"
-                      class="px-3 py-1.5 rounded ring-1 ring-slate-300 text-[12px]">Cancel</button>
+                      class="flex-1 py-1.5 rounded bg-slate-900 text-white text-[11.5px] font-medium">Save</button>
+              <button @click="open=false" class="px-3 py-1.5 rounded ring-1 ring-slate-300 text-[11.5px]">Cancel</button>
             </div>
           </div>
         </div>
       </template>
 
-      <!-- AUDIT TRAIL: the AI's original suggestion survives the correction -->
+      <!-- audit trail: the AI's original suggestion survives the correction -->
       <template x-if="field.override_history.length">
-        <div class="mt-5">
-          <h3 class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Correction history</h3>
+        <div class="mt-4">
+          <h3 class="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Correction history</h3>
           <template x-for="(h,i) in field.override_history" :key="i">
             <div class="mt-1.5 p-2.5 rounded bg-white ring-1 ring-slate-200">
-              <div class="flex items-center gap-2 mono text-[12px]">
+              <div class="flex items-center gap-2 mono text-[11.5px] tabular-nums">
                 <span class="text-slate-400 line-through" x-text="fmt(h.from)"></span>
                 <span class="text-slate-300">→</span>
                 <span class="font-medium" x-text="fmt(h.to)"></span>
@@ -300,30 +464,128 @@ function reviewApp() {
   return {
     selectedId: null,
     field: null,
+    page: null,
+    highlightRow: null,
     filterState: null,
+    q: '',
+    openItems: {{ open_items }},
+    live: {},
+
     fmt(v) {
       if (v === null || v === undefined) return '—';
       const s = '$' + Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:2, maximumFractionDigits:2});
       return v < 0 ? '(' + s + ')' : s;
     },
+    fmtStep(v) {
+      if (v === null || v === undefined) return '—';
+      if (Math.abs(v) < 1 && v !== 0) return (v*100).toFixed(0) + '%';
+      if (Number.isInteger(v) && Math.abs(v) < 100) return String(v);
+      return this.fmt(v);
+    },
+    fmtPlain(v) {
+      if (v === null || v === undefined) return '';
+      const s = Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:2, maximumFractionDigits:2});
+      return v < 0 ? '(' + s + ')' : s;
+    },
+
+    isSource(rowId) { return rowId && rowId === this.highlightRow; },
+
+    // live overrides so the left list updates without a full reload
+    displayValue(id, fallback) { return this.live[id] ? this.fmt(this.live[id].value) : fallback; },
+    labelOf(id, fallback) { return this.live[id] ? this.live[id].state_meta.label : fallback; },
+    chipOf(id, fallback)  { return this.live[id] ? this.live[id].state_meta.chip_bg : fallback; },
+    stateOf(id, fallback) { return this.live[id] ? this.live[id].state : fallback; },
+    hasConflict(id) { return this.live[id] ? this.live[id].conflicts.length > 0 : true; },
+
+    idx: {{ field_index | tojson }},
+
+    matches(entry) {
+      const st = this.live[entry.id] ? this.live[entry.id].state : entry.state;
+      if (this.filterState && st !== this.filterState) return false;
+      const q = this.q.trim().toLowerCase();
+      if (q && !entry.hay.includes(q)) return false;
+      return true;
+    },
+    visible(id) {
+      const e = this.idx.find(x => x.id === id);
+      return e ? this.matches(e) : true;
+    },
+    sectionVisible(name) {
+      return this.idx.some(e => e.section === name && this.matches(e));
+    },
+    sectionCount(name) {
+      return this.idx.filter(e => e.section === name && this.matches(e)).length;
+    },
+
     async select(id) {
       this.selectedId = id;
       const r = await fetch(`/api/field/${id}`);
       this.field = await r.json();
+      this.highlightRow = this.field.source_row;
+      if (this.field.source_doc) {
+        await this.loadPage(this.field.source_doc, this.field.page);
+      } else {
+        this.page = null;
+      }
+    },
+
+    async loadPage(docId, pageNo) {
+      const r = await fetch(`/api/doc/${docId}/page/${pageNo}`);
+      this.page = await r.json();
+      this.$nextTick(() => this.scrollToHighlight());
+    },
+
+    async goPage(n) {
+      if (!this.page || n < 1 || n > this.page.page_count) return;
+      await this.loadPage(this.page.doc_id, n);
+    },
+
+    async goDoc(docId, pageNo) {
+      this.highlightRow = null;
+      await this.loadPage(docId, pageNo);
+    },
+
+    async openStep(s) {
+      this.highlightRow = s.row || null;
+      await this.loadPage(s.doc, s.page);
+    },
+
+    async viewCompeting() {
+      const c = this.field.conflicts[0];
+      this.highlightRow = c.competing_row || null;
+      await this.loadPage(c.competing_doc, c.competing_page);
+    },
+
+    scrollToHighlight() {
+      if (!this.highlightRow) return;
+      const el = document.getElementById('row-' + this.highlightRow);
+      if (el) el.scrollIntoView({behavior:'smooth', block:'center'});
+    },
+
+    applyResult(data) {
+      this.field = data.field;
+      this.live[this.selectedId] = data.field;
+      this.openItems = data.open_items;
+      this.highlightRow = data.field.source_row;
+    },
+
+    async accept() {
+      const r = await fetch(`/api/field/${this.selectedId}/accept`, {method:'POST'});
+      if (r.ok) this.applyResult(await r.json());
     },
     async override(value, reason) {
-      await fetch(`/api/field/${this.selectedId}/override`, {
+      const r = await fetch(`/api/field/${this.selectedId}/override`, {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({value, reason})
       });
-      location.reload();
+      if (r.ok) this.applyResult(await r.json());
     },
     async resolve(value, reason) {
-      await fetch(`/api/field/${this.selectedId}/resolve`, {
+      const r = await fetch(`/api/field/${this.selectedId}/resolve`, {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({value, reason})
       });
-      location.reload();
+      if (r.ok) this.applyResult(await r.json());
     }
   }
 }

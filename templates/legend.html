@@ -1,22 +1,22 @@
 {% extends "base.html" %}
 {% block title %}Interaction System{% endblock %}
 {% block body %}
-<div class="max-w-4xl mx-auto px-6 py-8">
+<div class="max-w-4xl mx-auto px-6 py-7">
 
-  <h1 class="text-lg font-semibold tracking-tight">Interaction System</h1>
-  <p class="text-sm text-slate-500 mt-1 max-w-2xl">
+  <h1 class="text-[17px] font-semibold tracking-tight">Interaction System</h1>
+  <p class="text-[13px] text-slate-500 mt-1 max-w-2xl">
     Five states, defined once in <code class="mono text-[12px] bg-slate-100 px-1 rounded">mock_data.STATES</code>
     and consumed by every screen. Because the styling lives in the data layer rather than in each
     template, the visual language cannot drift between contexts.
   </p>
 
-  <div class="mt-6 space-y-3">
+  <div class="mt-6 space-y-2.5">
     {% for key, meta in STATES.items() %}
     <div class="bg-white rounded-lg ring-1 ring-slate-200 p-4 {{ meta.border }}">
       <div class="flex items-start gap-4">
         <span class="text-[11px] px-2 py-1 rounded ring-1 {{ meta.chip_bg }} shrink-0 font-medium">{{ meta.label }}</span>
         <div class="flex-1">
-          <p class="text-sm text-slate-700">{{ meta.meaning }}</p>
+          <p class="text-[13px] text-slate-700">{{ meta.meaning }}</p>
           <p class="text-[11px] text-slate-400 mt-1 mono">
             editable: {{ 'yes' if meta.editable else 'no' }} · left border encodes state · chip repeats it in text
           </p>
@@ -26,35 +26,55 @@
     {% endfor %}
   </div>
 
-  <div class="mt-8 bg-white rounded-lg ring-1 ring-slate-200 p-5">
-    <h2 class="text-sm font-semibold">Rules the system follows</h2>
-    <ul class="mt-3 space-y-2.5 text-[13px] text-slate-700">
-      <li class="flex gap-2.5">
-        <span class="text-slate-300 mono">01</span>
+  <div class="mt-7 bg-white rounded-lg ring-1 ring-slate-200 p-5">
+    <h2 class="text-[13px] font-semibold">Rules the system follows</h2>
+    <ul class="mt-3 space-y-3 text-[13px] text-slate-700">
+      <li class="flex gap-3">
+        <span class="text-slate-300 mono shrink-0">01</span>
+        <span><strong>Traceability is row-level, not coordinate-level.</strong> A field points at a
+        document, a page, and a specific row ID. The viewer renders that page's real content and
+        highlights the row. A bounding box drawn over a scanned image breaks the moment the
+        document is re-rendered; a row reference does not.</span>
+      </li>
+      <li class="flex gap-3">
+        <span class="text-slate-300 mono shrink-0">02</span>
         <span><strong>State is never encoded by color alone.</strong> Every state carries a border, a chip, and a
         text label, so the system survives color blindness and grayscale printing — which matters when a
         return package gets printed for a client meeting.</span>
       </li>
-      <li class="flex gap-2.5">
-        <span class="text-slate-300 mono">02</span>
+      <li class="flex gap-3">
+        <span class="text-slate-300 mono shrink-0">03</span>
         <span><strong>Locked always explains itself.</strong> A disabled field with no reason is the most common
         source of support tickets. Every locked field carries a sentence telling the user what to change instead.</span>
       </li>
-      <li class="flex gap-2.5">
-        <span class="text-slate-300 mono">03</span>
+      <li class="flex gap-3">
+        <span class="text-slate-300 mono shrink-0">04</span>
         <span><strong>Confidence is banded, not decimal.</strong> The panel leads with "Low confidence," not
         "0.61." A raw score implies a precision the model doesn't have, and CPAs will anchor on it.</span>
       </li>
-      <li class="flex gap-2.5">
-        <span class="text-slate-300 mono">04</span>
+      <li class="flex gap-3">
+        <span class="text-slate-300 mono shrink-0">05</span>
         <span><strong>Correcting the AI never erases it.</strong> The original suggestion, the correction, the
         reason, and the reviewer stay in the record. Under Sec. 280E audit scrutiny, that history is the
         substantiation.</span>
       </li>
-      <li class="flex gap-2.5">
-        <span class="text-slate-300 mono">05</span>
+      <li class="flex gap-3">
+        <span class="text-slate-300 mono shrink-0">06</span>
         <span><strong>Derived values show their chain, not a number.</strong> Clicking a calculated field
-        replaces the document viewer with its full derivation, each step linked to its own source.</span>
+        replaces the document viewer with its full derivation, and each step is itself clickable back to
+        its own source page. Pointing a derived value at one document would be a lie about where it came from.</span>
+      </li>
+      <li class="flex gap-3">
+        <span class="text-slate-300 mono shrink-0">07</span>
+        <span><strong>Unindexed pages say so.</strong> The lease has 12 pages; two were authored. Navigating
+        to page 9 says "not indexed in this prototype" rather than rendering invented content. Showing the
+        seam honestly is better than hiding it.</span>
+      </li>
+      <li class="flex gap-3">
+        <span class="text-slate-300 mono shrink-0">08</span>
+        <span><strong>Accepting is one click.</strong> A preparer confirming a high-confidence extraction two
+        hundred times a day should not have to open a dialog. Correcting — the rarer, higher-stakes action —
+        is the one that asks for a reason.</span>
       </li>
     </ul>
   </div>

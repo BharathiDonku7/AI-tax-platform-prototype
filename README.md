@@ -4,35 +4,47 @@
 
 I picked these three because they share one data model. A return field that carries its
 provenance, its confidence, and its state can drive all three challenges from a single source of
-truth — which meant I could build one screen properly instead of ten screens thinly.
+truth — which meant building one screen properly instead of ten screens thinly.
 
 ## Stack
 
 Flask + Jinja2 + Tailwind + Alpine.js, matching the Python/Flask/PostgreSQL monolith described in
-the role. No build step; `pip install flask && python app.py`.
+the role. No build step: `pip install -r requirements.txt && python app.py`.
+
+## Scale
+
+32 return fields across three sections, 11 source documents, 21 authored document pages.
+Enough volume that search, filtering, and the review queue are doing real work rather than
+decorating six demo rows.
 
 ## What is real vs. simulated
 
 **Real (genuinely wired up):**
-- The full click-through: selecting any field re-renders the document viewer, the highlight
-  overlay, and the trust panel from a live API call.
-- The state filter chips filter the field list.
-- Correcting a value POSTs to the server, appends to the audit trail, flips the field to
-  *Verified*, and updates the counts.
-- Conflict resolution: choosing between two competing figures writes the decision and clears the
-  conflict.
+- Selecting any field loads it over the API, renders its source document page, and scrolls the
+  highlighted row into view.
+- Page navigation: prev/next across every page of a document, plus "back to source" when you've
+  navigated away from the page the value came from.
+- Derivation chains are clickable — each input step opens its own source document and page.
+- Evidence items are clickable and navigate to the cited page.
+- Conflict resolution writes the decision, clears the conflict, and updates the open-item count.
+- Accept-as-verified and manual correction both POST, mutate state, and re-render without a reload.
 - Locked fields reject edits server-side with a 409 and an explanation.
-- The queue ranking function orders fields by decision urgency.
+- Search filters the field list; state chips filter by state.
 
 **Simulated (fabricated, as the brief permits):**
-- No OCR, no document parsing, no model inference. Every confidence score, bounding box, and AI
+- No OCR, no document parsing, no model inference. Every confidence score, document row, and AI
   rationale in `mock_data.py` is hand-authored.
-- Source documents are rendered as placeholder pages with a positioned highlight rather than real
-  PDFs. The bounding boxes are percentages so the overlay behaves correctly at any viewport.
+- Documents are rendered from structured row data rather than real PDFs. Pages that weren't
+  authored say so explicitly instead of showing invented content.
 - State lives in an in-memory dict and resets on restart. In production this is a Postgres table.
 - No auth. The header shows a fixed preparer identity.
 
 ## Decisions worth explaining
+
+**Traceability is row-level, not coordinate-level.** A field points at a document, a page, and a
+specific row ID; the viewer renders that page's real content and highlights the row. Bounding
+boxes over a scanned image break the moment the document is re-rendered at a different size. A
+row reference survives it, and it's what a real extraction pipeline would emit anyway.
 
 **The sample return is a cannabis dispensary with Sec. 280E exposure.** 280E disallows every
 deduction except cost of goods sold, which makes COGS allocation the single highest-stakes number
@@ -49,11 +61,15 @@ audit trail is visible without having to trigger one. Under audit, that history 
 substantiation.
 
 **Derived fields show a chain, not a document.** Clicking a calculated field swaps the document
-viewer for a step-by-step derivation with each input linked to its own source. Pointing at a
-single page would have been a lie about where the number came from.
+viewer for a step-by-step derivation, and each step is itself clickable back to its own source
+page. Pointing a derived value at a single page would have been a lie about where it came from.
 
-**Locked fields always explain themselves.** A grayed-out field with no reason is a support ticket.
-Each one says what to change instead.
+**Unindexed pages say so.** The lease has 12 pages; two were authored. Page 9 renders "not indexed
+in this prototype" with links to the pages that do exist. Showing the seam is better than faking it.
+
+**Accepting is one click; correcting asks for a reason.** A preparer confirming a high-confidence
+extraction two hundred times a day shouldn't have to open a dialog. The rarer, higher-stakes
+action is the one that demands justification.
 
 **State is never encoded by color alone.** Every state carries a border, a chip, and a text label,
 so the system survives grayscale printing — which happens whenever a return package goes to a
@@ -64,14 +80,17 @@ client meeting.
 | Case | Field | What it demonstrates |
 |---|---|---|
 | Two documents disagree | Gross receipts (Ln 1a) | Conflict UI, forced resolution, no silent pick |
-| Low-confidence extraction | Officer compensation (Ln 12) | Honest uncertainty with the *reason* for it |
-| Multi-step derivation | Cost of goods sold (Ln 2) | Calculation chain, each step traced |
+| Judgment call flagged for approval | Taxes and licenses (Ln 17) | AI excluded $1.68M of excise tax and says why |
+| Low-confidence extraction | Officer compensation (Ln 12) | Honest uncertainty *with the reason for it* |
+| Unexplained aggregate | Miscellaneous (Ln 26i) | AI flags an audit risk rather than just extracting |
+| Multi-step derivation | Cost of goods sold (Ln 2) | Five inputs, each clickable to its own source |
 | Human already overrode AI | Rents (Ln 16) | Audit trail preserving the original suggestion |
-| Uneditable derived value | 280E disallowed (Ln 26) | Locked state with an actionable explanation |
+| Uneditable derived value | Sec. 280E disallowed, Total tax | Locked state with an actionable explanation |
+| Document page not authored | Lease pages 1–3, 5–6, 8–12 | Prototype seams shown honestly |
 
 ## Run locally
 
 ```bash
-pip install flask
+pip install -r requirements.txt
 python app.py     # http://127.0.0.1:5000
 ```
