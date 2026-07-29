@@ -1,5 +1,5 @@
 """
-Mock data layer for the GreenGrowth CPAs AI Engineer case study.
+Mock data layer for the AI-assisted tax review prototype.
 
 EVERYTHING IN THIS FILE IS FABRICATED.
 No OCR, no document parsing, no model inference happens anywhere in this app.
@@ -12,7 +12,7 @@ one the field came from. That is a stronger claim than a coordinate overlay --
 the link survives the document being re-rendered at any size.
 
 The sample return is a cannabis dispensary (Sec. 280E exposure) because that is
-GreenGrowth's core client profile, and 280E is precisely where "trace this
+a common cannabis-sector client profile, and 280E is precisely where "trace this
 number back to its source" carries audit consequences.
 """
 

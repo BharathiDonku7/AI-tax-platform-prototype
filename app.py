@@ -1,5 +1,5 @@
 """
-GreenGrowth CPAs - AI Engineer Case Study
+AI-assisted tax review prototype
 Challenges 01 (Source Document Traceability), 08 (Clickable vs. Editable),
 and 10 (Trustworthy AI).
 
